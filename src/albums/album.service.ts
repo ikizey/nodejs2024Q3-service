@@ -38,14 +38,21 @@ export class AlbumService {
     }
 
     if (artistId) {
-      this.artistService.getArtist(artistId);
+      try {
+        this.artistService.getArtist(artistId);
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+          throw new BadRequestException('Artist not found');
+        }
+        throw error;
+      }
     }
 
     const newAlbum: Album = {
       id: uuid(),
       name,
       year,
-      artistId,
+      artistId: artistId || null,
     };
     this.albums.push(newAlbum);
     return newAlbum;
@@ -58,11 +65,18 @@ export class AlbumService {
     }
 
     if (artistId) {
-      this.artistService.getArtist(artistId);
+      try {
+        this.artistService.getArtist(artistId);
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+          throw new BadRequestException('Artist not found');
+        }
+        throw error;
+      }
     }
 
     const album = this.getAlbum(id);
-    Object.assign(album, { name, year, artistId });
+    Object.assign(album, { name, year, artistId: artistId || null });
     return album;
   }
 
