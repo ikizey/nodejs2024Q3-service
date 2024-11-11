@@ -52,9 +52,7 @@ export class UserService {
     if (!oldPassword || !newPassword) {
       throw new BadRequestException('Old and new passwords are required');
     }
-    if (!uuidValidate(id)) {
-      throw new BadRequestException('Invalid UUID format');
-    }
+
     const user = this.getUser(id);
     if (user.password !== oldPassword) {
       throw new UnauthorizedException('Incorrect old password');
