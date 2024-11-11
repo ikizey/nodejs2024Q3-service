@@ -11,24 +11,24 @@ import {
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UserService } from './user.service';
-import { User } from './user.entity';
+import { UserResponse } from './user.entity';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get()
-  async getUsers(): Promise<User[]> {
+  async getUsers(): Promise<UserResponse[]> {
     return this.userService.getUsers();
   }
 
   @Get(':id')
-  async getUser(@Param('id') id: string): Promise<User> {
+  async getUser(@Param('id') id: string): Promise<UserResponse> {
     return this.userService.getUser(id);
   }
 
   @Post()
-  async createUser(@Body() userData: CreateUserDto): Promise<User> {
+  async createUser(@Body() userData: CreateUserDto): Promise<UserResponse> {
     return this.userService.createUser(userData);
   }
 
@@ -36,7 +36,7 @@ export class UserController {
   async updatePassword(
     @Param('id') id: string,
     @Body() passwordData: UpdatePasswordDto,
-  ): Promise<User> {
+  ): Promise<UserResponse> {
     return this.userService.updatePassword(id, passwordData);
   }
 

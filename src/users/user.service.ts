@@ -6,18 +6,27 @@ import {
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
-import { User } from './user.entity';
+import { User, UserResponse } from './user.entity';
 import { v4 as uuid, validate as uuidValidate } from 'uuid';
 
 @Injectable()
 export class UserService {
   private users: User[] = [];
 
-  getUsers(): User[] {
-    return this.users;
+  private excludePassword(user: User): UserResponse {
+    const fields = Object.keys(user).filter((key) => key !== 'password');
+    const userWithoutPassword = Object.assign(
+      {},
+      ...fields.map((key) => ({ [key]: user[key as keyof User] })),
+    ) as UserResponse;
+    return userWithoutPassword;
   }
 
-  getUser(id: string): User {
+  getUsers(): UserResponse[] {
+    return this.users.map((user) => this.excludePassword(user));
+  }
+
+  getUser(id: string): UserResponse {
     if (!uuidValidate(id)) {
       throw new BadRequestException('Invalid UUID format');
     }
@@ -26,10 +35,14 @@ export class UserService {
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
-    return user;
+    return this.excludePassword(user);
   }
 
-  createUser(userData: CreateUserDto): User {
+  private getUserWithPassword(id: string): User {
+    return this.users.find((user) => user.id === id);
+  }
+
+  createUser(userData: CreateUserDto): UserResponse {
     const { login, password } = userData;
     if (!login || !password) {
       throw new BadRequestException('Login and password are required');
@@ -44,23 +57,23 @@ export class UserService {
       updatedAt: Date.now(),
     };
     this.users.push(newUser);
-    return newUser;
+    return this.excludePassword(newUser);
   }
 
-  updatePassword(id: string, passwordData: UpdatePasswordDto): User {
+  updatePassword(id: string, passwordData: UpdatePasswordDto): UserResponse {
     const { oldPassword, newPassword } = passwordData;
     if (!oldPassword || !newPassword) {
       throw new BadRequestException('Old and new passwords are required');
     }
 
-    const user = this.getUser(id);
+    const user = this.getUserWithPassword(id);
     if (user.password !== oldPassword) {
       throw new UnauthorizedException('Incorrect old password');
     }
     user.password = passwordData.newPassword;
     user.version++;
     user.updatedAt = Date.now();
-    return user;
+    return this.excludePassword(user);
   }
 
   deleteUser(id: string): void {
