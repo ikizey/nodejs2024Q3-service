@@ -42,40 +42,73 @@ export class TrackService {
     }
 
     if (artistId) {
-      this.artistService.getArtist(artistId);
+      try {
+        this.artistService.getArtist(artistId);
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+          throw new BadRequestException('Artist not found');
+        }
+        throw error;
+      }
     }
 
     if (albumId) {
-      this.albumService.getAlbum(albumId);
+      try {
+        this.albumService.getAlbum(albumId);
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+          throw new BadRequestException('Album not found');
+        }
+        throw error;
+      }
     }
 
     const newTrack: Track = {
       id: uuid(),
       name,
-      artistId,
-      albumId,
       duration,
+      artistId: artistId || null,
+      albumId: albumId || null,
     };
     this.tracks.push(newTrack);
     return newTrack;
   }
 
   updateTrack(id: string, trackData: UpdateTrackDto): Track {
-    const { name, artistId, albumId, duration } = trackData;
+    const { name, duration, artistId, albumId } = trackData;
     if (!name || typeof duration !== 'number') {
       throw new BadRequestException('Name and duration are required');
     }
 
     if (artistId) {
-      this.artistService.getArtist(artistId);
+      try {
+        this.artistService.getArtist(artistId);
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+          throw new BadRequestException('Artist not found');
+        }
+        throw error;
+      }
     }
 
     if (albumId) {
-      this.albumService.getAlbum(albumId);
+      try {
+        this.albumService.getAlbum(albumId);
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+          throw new BadRequestException('Album not found');
+        }
+        throw error;
+      }
     }
 
     const track = this.getTrack(id);
-    Object.assign(track, { name, artistId, albumId, duration });
+    Object.assign(track, {
+      name,
+      duration,
+      artistId: artistId || null,
+      albumId: albumId || null,
+    });
     return track;
   }
 
