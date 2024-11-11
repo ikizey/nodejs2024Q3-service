@@ -25,13 +25,34 @@ export class FavoritesService {
   ) {}
 
   async getFavorites(): Promise<FavoritesResponse> {
-    return {
-      artists: this.favorites.artists.map((id) =>
-        this.artistService.getArtist(id),
-      ),
-      albums: this.favorites.albums.map((id) => this.albumService.getAlbum(id)),
-      tracks: this.favorites.tracks.map((id) => this.trackService.getTrack(id)),
+    const response: FavoritesResponse = {
+      artists: [],
+      albums: [],
+      tracks: [],
     };
+
+    for (const id of this.favorites.artists) {
+      try {
+        const artist = this.artistService.getArtist(id);
+        response.artists.push(artist);
+      } catch {}
+    }
+
+    for (const id of this.favorites.albums) {
+      try {
+        const album = this.albumService.getAlbum(id);
+        response.albums.push(album);
+      } catch {}
+    }
+
+    for (const id of this.favorites.tracks) {
+      try {
+        const track = this.trackService.getTrack(id);
+        response.tracks.push(track);
+      } catch {}
+    }
+
+    return response;
   }
 
   async addTrack(id: string): Promise<void> {
