@@ -27,3 +27,16 @@ npm run start:prod
 ## API documentation
 
 http://localhost:4000/doc (by default) or http://localhost:PORT/doc where PORT is your port number from .env file
+
+
+## Tests
+
+```
+npm run test
+```
+
+## Run lint
+
+```
+npm run lint
+```
