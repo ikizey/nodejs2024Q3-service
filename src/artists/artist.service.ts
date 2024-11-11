@@ -30,7 +30,7 @@ export class ArtistService {
 
   createArtist(artistData: CreateArtistDto): Artist {
     const { name, grammy } = artistData;
-    if (!name || !grammy) {
+    if (!name || typeof grammy !== 'boolean') {
       throw new BadRequestException('Name and grammy are required');
     }
 
@@ -45,11 +45,19 @@ export class ArtistService {
 
   updateArtist(id: string, artistData: UpdateArtistDto): Artist {
     const { name, grammy } = artistData;
-    if (!name || !grammy) {
+    if (!name || typeof grammy !== 'boolean') {
       throw new BadRequestException('Name and grammy are required');
     }
 
-    const artist = this.getArtist(id);
+    if (!uuidValidate(id)) {
+      throw new BadRequestException('Invalid UUID format');
+    }
+
+    const artist = this.artists.find((a) => a.id === id);
+    if (!artist) {
+      throw new NotFoundException(`Artist with ID ${id} not found`);
+    }
+
     Object.assign(artist, { name, grammy });
     return artist;
   }
