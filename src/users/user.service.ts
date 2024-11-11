@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -26,20 +27,21 @@ export class UserService {
     return this.users.map((user) => this.excludePassword(user));
   }
 
-  getUser(id: string): UserResponse {
+  private getUserWithPassword(id: string): User {
     if (!uuidValidate(id)) {
       throw new BadRequestException('Invalid UUID format');
     }
 
-    const user = this.users.find((u) => u.id === id);
+    const user = this.users.find((user) => user.id === id);
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
-    return this.excludePassword(user);
+    return user;
   }
 
-  private getUserWithPassword(id: string): User {
-    return this.users.find((user) => user.id === id);
+  getUser(id: string): UserResponse {
+    const user = this.getUserWithPassword(id);
+    return this.excludePassword(user);
   }
 
   createUser(userData: CreateUserDto): UserResponse {
@@ -67,8 +69,9 @@ export class UserService {
     }
 
     const user = this.getUserWithPassword(id);
+
     if (user.password !== oldPassword) {
-      throw new UnauthorizedException('Incorrect old password');
+      throw new ForbiddenException('Incorrect old password');
     }
     user.password = passwordData.newPassword;
     user.version++;
