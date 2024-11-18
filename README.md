@@ -2,10 +2,6 @@
 
 
 ## Running application
-install dependencies
-```
-npm install
-```
 
 add .env file to root folder (use .env.example as example)
 
@@ -13,15 +9,26 @@ add .env file to root folder (use .env.example as example)
 cp .env.example .env
 ```
 
+install dependencies
 ```
-npm run start
+npm install
 ```
 
-to build and run application
+create database folder
+
 ```
-npm run prebuild
-npm run build
-npm run start:prod
+mkdir database
+```
+
+run docker compose
+```
+docker compose up
+```
+
+setup prisma
+```
+npm run prisma:generate
+npm run prisma:migrate
 ```
 
 ## API documentation
