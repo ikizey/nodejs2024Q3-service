@@ -7,85 +7,116 @@ import {
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { User, UserResponse } from './user.entity';
-import { v4 as uuid, validate as uuidValidate } from 'uuid';
+import { validate as uuidValidate } from 'uuid';
+import { PrismaService } from '../prisma/prisma.service';
+import { User as PrismaUser } from '@prisma/client';
 
 @Injectable()
 export class UserService {
-  private users: User[] = [];
+  constructor(private prisma: PrismaService) {}
+
+  private convertPrismaUser(prismaUser: PrismaUser): User {
+    return {
+      ...prismaUser,
+      createdAt: prismaUser.createdAt.getTime(),
+      updatedAt: prismaUser.updatedAt.getTime(),
+    };
+  }
 
   private excludePassword(user: User): UserResponse {
-    const fields = Object.keys(user).filter((key) => key !== 'password');
-    const userWithoutPassword = Object.assign(
-      {},
-      ...fields.map((key) => ({ [key]: user[key as keyof User] })),
-    ) as UserResponse;
+    const { password, ...userWithoutPassword } = user;
     return userWithoutPassword;
   }
 
-  getUsers(): UserResponse[] {
-    return this.users.map((user) => this.excludePassword(user));
+  async getUsers(): Promise<UserResponse[]> {
+    const users = await this.prisma.user.findMany();
+    return users
+      .map((user) => this.convertPrismaUser(user))
+      .map((user) => this.excludePassword(user));
   }
 
-  private getUserWithPassword(id: string): User {
+  private async getUserWithPassword(id: string): Promise<User> {
     if (!uuidValidate(id)) {
       throw new BadRequestException('Invalid UUID format');
     }
 
-    const user = this.users.find((user) => user.id === id);
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
-    return user;
+    return this.convertPrismaUser(user);
   }
 
-  getUser(id: string): UserResponse {
-    const user = this.getUserWithPassword(id);
+  async getUser(id: string): Promise<UserResponse> {
+    const user = await this.getUserWithPassword(id);
     return this.excludePassword(user);
   }
 
-  createUser(userData: CreateUserDto): UserResponse {
+  async createUser(userData: CreateUserDto): Promise<UserResponse> {
     const { login, password } = userData;
     if (!login || !password) {
       throw new BadRequestException('Login and password are required');
     }
 
-    const newUser: User = {
-      id: uuid(),
-      login: userData.login,
-      password: userData.password,
-      version: 1,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    this.users.push(newUser);
-    return this.excludePassword(newUser);
+    try {
+      const newUser = await this.prisma.user.create({
+        data: {
+          login,
+          password,
+        },
+      });
+      return this.excludePassword(this.convertPrismaUser(newUser));
+    } catch (error) {
+      if (error.code === 'P2002') {
+        throw new BadRequestException('Login already exists');
+      }
+      throw error;
+    }
   }
 
-  updatePassword(id: string, passwordData: UpdatePasswordDto): UserResponse {
+  async updatePassword(
+    id: string,
+    passwordData: UpdatePasswordDto,
+  ): Promise<UserResponse> {
     const { oldPassword, newPassword } = passwordData;
     if (!oldPassword || !newPassword) {
       throw new BadRequestException('Old and new passwords are required');
     }
 
-    const user = this.getUserWithPassword(id);
+    const user = await this.getUserWithPassword(id);
 
     if (user.password !== oldPassword) {
       throw new ForbiddenException('Incorrect old password');
     }
-    user.password = passwordData.newPassword;
-    user.version++;
-    user.updatedAt = Date.now();
-    return this.excludePassword(user);
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: {
+        password: newPassword,
+        version: { increment: 1 },
+      },
+    });
+
+    return this.excludePassword(this.convertPrismaUser(updatedUser));
   }
 
-  deleteUser(id: string): void {
+  async deleteUser(id: string): Promise<void> {
     if (!uuidValidate(id)) {
       throw new BadRequestException('Invalid UUID format');
     }
-    const index = this.users.findIndex((u) => u.id === id);
-    if (index === -1) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+
+    try {
+      await this.prisma.user.delete({
+        where: { id },
+      });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`User with ID ${id} not found`);
+      }
+      throw error;
     }
-    this.users.splice(index, 1);
   }
 }
