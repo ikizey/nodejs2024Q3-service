@@ -10,6 +10,8 @@ services:
       - .env
     ports:
       - '${PORT}:${PORT}'
+    networks:
+      - app_network
     depends_on:
       - postgres
 
@@ -29,7 +31,13 @@ services:
       POSTGRES_LOGGING_COLLECTOR: ${POSTGRES_LOGGING_COLLECTOR}
       POSTGRES_LOG_DIRECTORY: ${POSTGRES_LOG_DIRECTORY}
       POSTGRES_LOG_FILENAME: ${POSTGRES_LOG_FILENAME}
+    networks:
+      - app_network
 
 volumes:
   postgres_data:
   postgres_logs:
+
+networks:
+  app_network:
+    driver: bridge
