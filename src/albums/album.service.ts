@@ -6,32 +6,37 @@ import {
 import { Album } from './album.entity';
 import { CreateAlbumDto } from './dto/create-album.dto';
 import { UpdateAlbumDto } from './dto/update-album.dto';
-import { v4 as uuid, validate as uuidValidate } from 'uuid';
+import { validate as uuidValidate } from 'uuid';
 import { ArtistService } from '../artists/artist.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AlbumService {
-  private albums: Album[] = [];
+  constructor(
+    private readonly artistService: ArtistService,
+    private prisma: PrismaService,
+  ) {}
 
-  constructor(private readonly artistService: ArtistService) {}
-
-  getAlbums(): Album[] {
-    return this.albums;
+  async getAlbums(): Promise<Album[]> {
+    return this.prisma.album.findMany();
   }
 
-  getAlbum(id: string): Album {
+  async getAlbum(id: string): Promise<Album> {
     if (!uuidValidate(id)) {
       throw new BadRequestException('Invalid UUID format');
     }
 
-    const album = this.albums.find((a) => a.id === id);
+    const album = await this.prisma.album.findUnique({
+      where: { id },
+    });
+
     if (!album) {
       throw new NotFoundException(`Album with ID ${id} not found`);
     }
     return album;
   }
 
-  createAlbum(albumData: CreateAlbumDto): Album {
+  async createAlbum(albumData: CreateAlbumDto): Promise<Album> {
     const { name, year, artistId } = albumData;
     if (!name || typeof year !== 'number') {
       throw new BadRequestException('Name and year are required');
@@ -39,7 +44,7 @@ export class AlbumService {
 
     if (artistId) {
       try {
-        this.artistService.getArtist(artistId);
+        await this.artistService.getArtist(artistId);
       } catch (error) {
         if (error instanceof NotFoundException) {
           throw new BadRequestException('Artist not found');
@@ -48,17 +53,16 @@ export class AlbumService {
       }
     }
 
-    const newAlbum: Album = {
-      id: uuid(),
-      name,
-      year,
-      artistId: artistId || null,
-    };
-    this.albums.push(newAlbum);
-    return newAlbum;
+    return this.prisma.album.create({
+      data: {
+        name,
+        year,
+        artistId: artistId || null,
+      },
+    });
   }
 
-  updateAlbum(id: string, albumData: UpdateAlbumDto): Album {
+  async updateAlbum(id: string, albumData: UpdateAlbumDto): Promise<Album> {
     const { name, year, artistId } = albumData;
     if (!name || typeof year !== 'number') {
       throw new BadRequestException('Name and year are required');
@@ -66,7 +70,7 @@ export class AlbumService {
 
     if (artistId) {
       try {
-        this.artistService.getArtist(artistId);
+        await this.artistService.getArtist(artistId);
       } catch (error) {
         if (error instanceof NotFoundException) {
           throw new BadRequestException('Artist not found');
@@ -75,19 +79,41 @@ export class AlbumService {
       }
     }
 
-    const album = this.getAlbum(id);
-    Object.assign(album, { name, year, artistId: artistId || null });
-    return album;
-  }
-
-  deleteAlbum(id: string): void {
     if (!uuidValidate(id)) {
       throw new BadRequestException('Invalid UUID format');
     }
-    const index = this.albums.findIndex((a) => a.id === id);
-    if (index === -1) {
-      throw new NotFoundException(`Album with ID ${id} not found`);
+
+    try {
+      return await this.prisma.album.update({
+        where: { id },
+        data: {
+          name,
+          year,
+          artistId: artistId || null,
+        },
+      });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`Album with ID ${id} not found`);
+      }
+      throw error;
     }
-    this.albums.splice(index, 1);
+  }
+
+  async deleteAlbum(id: string): Promise<void> {
+    if (!uuidValidate(id)) {
+      throw new BadRequestException('Invalid UUID format');
+    }
+
+    try {
+      await this.prisma.album.delete({
+        where: { id },
+      });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`Album with ID ${id} not found`);
+      }
+      throw error;
+    }
   }
 }
