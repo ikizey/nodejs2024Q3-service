@@ -6,36 +6,39 @@ import {
 import { Track } from './track.entity';
 import { CreateTrackDto } from './dto/create-track.dto';
 import { UpdateTrackDto } from './dto/update-track.dto';
-import { v4 as uuid, validate as uuidValidate } from 'uuid';
+import { validate as uuidValidate } from 'uuid';
 import { ArtistService } from '../artists/artist.service';
 import { AlbumService } from '../albums/album.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class TrackService {
-  private tracks: Track[] = [];
-
   constructor(
     private readonly artistService: ArtistService,
     private readonly albumService: AlbumService,
+    private prisma: PrismaService,
   ) {}
 
-  getTracks(): Track[] {
-    return this.tracks;
+  async getTracks(): Promise<Track[]> {
+    return this.prisma.track.findMany();
   }
 
-  getTrack(id: string): Track {
+  async getTrack(id: string): Promise<Track> {
     if (!uuidValidate(id)) {
       throw new BadRequestException('Invalid UUID format');
     }
 
-    const track = this.tracks.find((track) => track.id === id);
+    const track = await this.prisma.track.findUnique({
+      where: { id },
+    });
+
     if (!track) {
       throw new NotFoundException(`Track with ID ${id} not found`);
     }
     return track;
   }
 
-  createTrack(trackData: CreateTrackDto): Track {
+  async createTrack(trackData: CreateTrackDto): Promise<Track> {
     const { name, artistId, albumId, duration } = trackData;
     if (!name || typeof duration !== 'number') {
       throw new BadRequestException('Name and duration are required');
@@ -43,7 +46,7 @@ export class TrackService {
 
     if (artistId) {
       try {
-        this.artistService.getArtist(artistId);
+        await this.artistService.getArtist(artistId);
       } catch (error) {
         if (error instanceof NotFoundException) {
           throw new BadRequestException('Artist not found');
@@ -54,7 +57,7 @@ export class TrackService {
 
     if (albumId) {
       try {
-        this.albumService.getAlbum(albumId);
+        await this.albumService.getAlbum(albumId);
       } catch (error) {
         if (error instanceof NotFoundException) {
           throw new BadRequestException('Album not found');
@@ -63,18 +66,17 @@ export class TrackService {
       }
     }
 
-    const newTrack: Track = {
-      id: uuid(),
-      name,
-      duration,
-      artistId: artistId || null,
-      albumId: albumId || null,
-    };
-    this.tracks.push(newTrack);
-    return newTrack;
+    return this.prisma.track.create({
+      data: {
+        name,
+        duration,
+        artistId: artistId || null,
+        albumId: albumId || null,
+      },
+    });
   }
 
-  updateTrack(id: string, trackData: UpdateTrackDto): Track {
+  async updateTrack(id: string, trackData: UpdateTrackDto): Promise<Track> {
     const { name, duration, artistId, albumId } = trackData;
     if (!name || typeof duration !== 'number') {
       throw new BadRequestException('Name and duration are required');
@@ -82,7 +84,7 @@ export class TrackService {
 
     if (artistId) {
       try {
-        this.artistService.getArtist(artistId);
+        await this.artistService.getArtist(artistId);
       } catch (error) {
         if (error instanceof NotFoundException) {
           throw new BadRequestException('Artist not found');
@@ -93,7 +95,7 @@ export class TrackService {
 
     if (albumId) {
       try {
-        this.albumService.getAlbum(albumId);
+        await this.albumService.getAlbum(albumId);
       } catch (error) {
         if (error instanceof NotFoundException) {
           throw new BadRequestException('Album not found');
@@ -102,24 +104,42 @@ export class TrackService {
       }
     }
 
-    const track = this.getTrack(id);
-    Object.assign(track, {
-      name,
-      duration,
-      artistId: artistId || null,
-      albumId: albumId || null,
-    });
-    return track;
-  }
-
-  deleteTrack(id: string): void {
     if (!uuidValidate(id)) {
       throw new BadRequestException('Invalid UUID format');
     }
-    const index = this.tracks.findIndex((track) => track.id === id);
-    if (index === -1) {
-      throw new NotFoundException(`Track with ID ${id} not found`);
+
+    try {
+      return await this.prisma.track.update({
+        where: { id },
+        data: {
+          name,
+          duration,
+          artistId: artistId || null,
+          albumId: albumId || null,
+        },
+      });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`Track with ID ${id} not found`);
+      }
+      throw error;
     }
-    this.tracks.splice(index, 1);
+  }
+
+  async deleteTrack(id: string): Promise<void> {
+    if (!uuidValidate(id)) {
+      throw new BadRequestException('Invalid UUID format');
+    }
+
+    try {
+      await this.prisma.track.delete({
+        where: { id },
+      });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`Track with ID ${id} not found`);
+      }
+      throw error;
+    }
   }
 }
