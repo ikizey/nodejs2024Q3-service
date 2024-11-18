@@ -1,0 +1,13 @@
+services:
+
+  api:
+    restart: always
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "${PORT}:${PORT}"
+    
