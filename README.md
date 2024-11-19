@@ -1,72 +1,79 @@
 # Home Library Service
 
-## Prerequisites
 
-- Git - [Download & Install Git](https://git-scm.com/downloads).
-- Node.js - [Download & Install Node.js](https://nodejs.org/en/download/) and the npm package manager.
+## Running application
 
-## Downloading
+add .env file to root folder (use .env.example as example)
 
 ```
-git clone {repository URL}
+cp .env.example .env
 ```
 
-## Installing NPM modules
-
+install dependencies
 ```
 npm install
 ```
 
-## Running application
+create database folder
 
 ```
-npm start
+mkdir database
 ```
 
-After starting the app on port (4000 as default) you can open
-in your browser OpenAPI documentation by typing http://localhost:4000/doc/.
-For more information about OpenAPI/Swagger please visit https://swagger.io/.
 
-## Testing
+run docker compose
+```
+docker-compose up --build
+```
+then Ctrl+C to stop docker compose
 
-After application running open new terminal and enter:
+### setup prisma
 
-To run all tests without authorization
+in .env file change POSTGRES_HOST to localhost
+
+```
+docker-compose up postgres
+```
+
+setup prisma (only once) (in another terminal)
+```
+npm run prisma:generate
+npm run prisma:migrate
+```
+
+back to main terminal 
+Ctrl+C to stop docker compose
+
+in .env file change POSTGRES_HOST back to postgres
+
+now everything is set up and you can run the app
+
+```
+docker-compose up
+```
+
+## Trouble shooting
+if during build you have an error about database folder, just delete database/data folder and follow instructions above again
+you need administrator rights to delete database folder
+for example in terminal
+```
+sudo rm -r database/data
+```
+(for windows you can delete database/data folder in file explorer)
+
+## API documentation
+
+http://localhost:4000/doc (by default) or http://localhost:PORT/doc where PORT is your port number from .env file
+
+
+## Tests
 
 ```
 npm run test
 ```
 
-To run only one of all test suites
-
-```
-npm run test -- <path to suite>
-```
-
-To run all test with authorization
-
-```
-npm run test:auth
-```
-
-To run only specific test suite with authorization
-
-```
-npm run test:auth -- <path to suite>
-```
-
-### Auto-fix and format
+## Run lint
 
 ```
 npm run lint
 ```
-
-```
-npm run format
-```
-
-### Debugging in VSCode
-
-Press <kbd>F5</kbd> to debug.
-
-For more information, visit: https://code.visualstudio.com/docs/editor/debugging
