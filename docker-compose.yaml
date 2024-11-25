@@ -1,0 +1,43 @@
+services:
+
+  api:
+    restart: always
+
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.api
+    env_file:
+      - .env
+    ports:
+      - '${PORT}:${PORT}'
+    networks:
+      - app_network
+    depends_on:
+      - postgres
+
+  postgres:
+    restart: always
+
+    image: postgres:17-alpine
+
+    env_file:
+      - .env
+    ports:
+      - '${POSTGRES_PORT}:${POSTGRES_PORT}'
+    volumes:
+      - ./database/data:/var/lib/postgresql/data
+      - ./database/logs:/${POSTGRES_LOG_DIRECTORY}
+    environment:
+      POSTGRES_LOGGING_COLLECTOR: ${POSTGRES_LOGGING_COLLECTOR}
+      POSTGRES_LOG_DIRECTORY: ${POSTGRES_LOG_DIRECTORY}
+      POSTGRES_LOG_FILENAME: ${POSTGRES_LOG_FILENAME}
+    networks:
+      - app_network
+
+volumes:
+  postgres_data:
+  postgres_logs:
+
+networks:
+  app_network:
+    driver: bridge
