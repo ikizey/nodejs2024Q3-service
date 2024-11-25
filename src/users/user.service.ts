@@ -4,12 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { User, UserResponse } from './user.entity';
-import { validate as uuidValidate } from 'uuid';
-import { PrismaService } from '../prisma/prisma.service';
 import { User as PrismaUser } from '@prisma/client';
+import { validate as uuidValidate } from 'uuid';
+import { compare, hash } from 'bcrypt';
+import { PrismaService } from '../prisma/prisma.service';
+import { AuthDto } from 'src/auth/dto/auth.dto';
 
 @Injectable()
 export class UserService {
@@ -55,19 +56,25 @@ export class UserService {
     return this.excludePassword(user);
   }
 
-  async createUser(userData: CreateUserDto): Promise<UserResponse> {
+  async createUser(userData: AuthDto): Promise<UserResponse> {
     const { login, password } = userData;
     if (!login || !password) {
       throw new BadRequestException('Login and password are required');
     }
 
     try {
+      const hashedPassword = await hash(
+        userData.password,
+        +process.env.CRYPT_SALT,
+      );
+
       const newUser = await this.prisma.user.create({
         data: {
           login,
-          password,
+          password: hashedPassword,
         },
       });
+
       return this.excludePassword(this.convertPrismaUser(newUser));
     } catch (error) {
       if (error.code === 'P2002') {
@@ -88,14 +95,18 @@ export class UserService {
 
     const user = await this.getUserWithPassword(id);
 
-    if (user.password !== oldPassword) {
+    const isSamePassword = await compare(oldPassword, user.password);
+
+    if (!isSamePassword) {
       throw new ForbiddenException('Incorrect old password');
     }
+
+    const hashedPassword = await hash(newPassword, +process.env.CRYPT_SALT);
 
     const updatedUser = await this.prisma.user.update({
       where: { id },
       data: {
-        password: newPassword,
+        password: hashedPassword,
         version: { increment: 1 },
       },
     });
